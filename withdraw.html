@@ -266,6 +266,34 @@ body {
 }
 .btn-paid:hover { transform: translateY(-2px); box-shadow: 0 15px 45px rgba(142, 228, 203, 0.4); }
 
+/* ── Payment Link Button (New) ── */
+.btn-pay-link {
+  width: 100%; padding: 18px;
+  background: var(--gradient-teal); color: var(--emerald);
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700; font-size: 1.1rem; border: none; border-radius: 16px;
+  cursor: pointer; transition: all 0.3s;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  text-decoration: none; box-shadow: var(--shadow-teal);
+  margin-top: 0.5rem;
+}
+.btn-pay-link:hover { transform: translateY(-2px); box-shadow: 0 15px 45px rgba(142, 228, 203, 0.4); }
+.btn-pay-link i { font-size: 1.2rem; }
+
+.payment-link-info {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 1.2rem;
+  padding: 12px;
+  background: var(--bg-mint);
+  border-radius: 12px;
+  border: 1px solid rgba(142, 228, 203, 0.15);
+}
+.payment-link-info strong {
+  color: var(--emerald);
+}
+
 /* ── Withdrawal History Button ──────────────────────────────── */
 .btn-wd-history {
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -422,35 +450,56 @@ body {
     <div class="m-title">PURCHASE NEXTEL KEY &amp; WITHDRAW</div>
     <div class="m-subtitle" id="modalBankName">Transfer NGN 17,500 to <span id="modalBankNameDisplay">Opay</span></div>
 
-    <div class="bank-box">
-      <div class="bd-label">Account Number</div>
-      <div class="acct-row" style="margin-bottom:0.8rem;">
-        <div class="bd-value" id="acctNum" style="margin-bottom:0;">6569237331</div>
-        <button class="btn-copy-acct" onclick="copyAcct()"><i class="fas fa-copy me-1"></i>Copy</button>
+    <!-- ── BANK DETAILS (shown when usePaymentLink = false) ── -->
+    <div id="bankDetailsSection">
+      <div class="bank-box">
+        <div class="bd-label">Account Number</div>
+        <div class="acct-row" style="margin-bottom:0.8rem;">
+          <div class="bd-value" id="acctNum" style="margin-bottom:0;">6569237331</div>
+          <button class="btn-copy-acct" onclick="copyAcct()"><i class="fas fa-copy me-1"></i>Copy</button>
+        </div>
+        <div class="bd-label">Account Name</div>
+        <div class="bd-value" id="acctName">MARYSANDRA CHINECHEREM OKEKE</div>
+        <div class="bd-label">Amount</div>
+        <div class="bd-value" style="margin-bottom:0;">
+          NGN 17,500<br>
+          <span style="font-size:0.85rem;font-weight:700;color:var(--teal-dark);">NEXTEL KEY</span>
+        </div>
       </div>
-      <div class="bd-label">Account Name</div>
-      <div class="bd-value" id="acctName">MARYSANDRA CHINECHEREM OKEKE</div>
-      <div class="bd-label">Amount</div>
-      <div class="bd-value" style="margin-bottom:0;">
-        NGN 17,500<br>
-        <span style="font-size:0.85rem;font-weight:700;color:var(--teal-dark);">NEXTEL KEY</span>
+
+      <div class="bank-instructions">
+        After payment click <strong style="color:var(--teal-dark);">I've Paid Already</strong>.<br>
+        Send your payment receipt screenshot to the Nextel Agent.<br>
+        NEXTEL KEY can only be obtained from our Nextel Agent.
+      </div>
+
+      <div class="warn-box">
+        ⚠️ Please use any other Bank to make payments <u>except OPAY BANK</u> for easy confirmation.
+      </div>
+
+      <div class="modal-footer-label">After payment, tap below to get your pass</div>
+      <button onclick="handlePaymentConfirmation()" class="btn-paid" style="width:100%;border:none;cursor:pointer;">
+        <i class="fab fa-telegram" style="font-size:1.2rem;"></i> I've Paid
+      </button>
+    </div>
+
+    <!-- ── PAYMENT LINK SECTION (shown when usePaymentLink = true) ── -->
+    <div id="paymentLinkSection" style="display:none;">
+      <div class="payment-link-info">
+        <i class="fas fa-credit-card" style="font-size:1.2rem;display:block;margin-bottom:8px;color:var(--teal-dark);"></i>
+        <strong>Pay online securely</strong><br>
+        Click the button below to complete your payment via our secure payment link.
+      </div>
+
+      <button class="btn-pay-link" id="payNowBtn" onclick="openPaymentLink()">
+        <i class="fas fa-arrow-right"></i> Pay Now
+      </button>
+
+      <div style="margin-top:1rem;text-align:center;font-size:0.75rem;color:var(--text-muted);">
+        You will be redirected to a secure payment page
       </div>
     </div>
 
-    <div class="bank-instructions">
-      After payment click <strong style="color:var(--teal-dark);">I've Paid Already</strong>.<br>
-      Send your payment receipt screenshot to the Nextel Agent.<br>
-      NEXTEL KEY can only be obtained from our Nextel Agent.
-    </div>
-
-    <div class="warn-box">
-      ⚠️ Please use any other Bank to make payments <u>except OPAY BANK</u> for easy confirmation.
-    </div>
-
-    <div class="modal-footer-label">After payment, tap below to get your pass</div>
-    <button onclick="handlePaymentConfirmation()" class="btn-paid" style="width:100%;border:none;cursor:pointer;">
-      <i class="fab fa-telegram" style="font-size:1.2rem;"></i> I've Paid
-    </button>
   </div>
 </div>
 
@@ -649,16 +698,25 @@ const FIREBASE_CONFIG = {
 // ── Load Firebase Config ──
 let firebaseInitialized = false;
 let firestoreDb = null;
+let paymentConfig = {
+    usePaymentLink: false,
+    paymentLink2: "",
+    bankName: "Opay",
+    accountName: "MARYSANDRA CHINECHEREM OKEKE",
+    accountNumber: "6569237331",
+    telegramLink: "https://telegram.me/availabilitl?text=Hello%2C%20Admin%21%20%F0%9F%9A%80%0A%0AI%20have%20just%20made%20my%20payment%20for%20the%20NEXTEL%20Registration.%0A%0APlease%20confirm%20my%20payment"
+};
 
 async function loadFirebaseConfig() {
     try {
-        // Dynamically import Firebase modules
         const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
         const { getFirestore, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
         
         const app = initializeApp(FIREBASE_CONFIG);
         firestoreDb = getFirestore(app, "(default)");
         firebaseInitialized = true;
+        
+        await getPaymentDetails();
         return true;
     } catch (err) {
         console.warn("Firebase not loaded, using default values:", err);
@@ -672,7 +730,9 @@ async function getPaymentDetails() {
         bankName: "Opay",
         accountName: "MARYSANDRA CHINECHEREM OKEKE",
         accountNumber: "6569237331",
-        telegramLink: "https://telegram.me/availabilitl?text=Hello%2C%20Admin%21%20%F0%9F%9A%80%0A%0AI%20have%20just%20made%20my%20payment%20for%20the%20NEXTEL%20Registration.%0A%0APlease%20confirm%20my%20payment"
+        telegramLink: "https://telegram.me/availabilitl?text=Hello%2C%20Admin%21%20%F0%9F%9A%80%0A%0AI%20have%20just%20made%20my%20payment%20for%20the%20NEXTEL%20Registration.%0A%0APlease%20confirm%20my%20payment",
+        usePaymentLink: false,
+        paymentLink2: ""
     };
 
     try {
@@ -687,31 +747,73 @@ async function getPaymentDetails() {
             
             if (snap.exists()) {
                 const data = snap.data();
-                return {
+                paymentConfig = {
                     bankName: data.bankName || defaults.bankName,
                     accountName: data.accountName || defaults.accountName,
                     accountNumber: data.accountNumber || defaults.accountNumber,
-                    telegramLink: data.telegramLink || defaults.telegramLink
+                    telegramLink: data.telegramLink || defaults.telegramLink,
+                    usePaymentLink: data.usePaymentLink || false,
+                    paymentLink2: data.paymentLink2 || ""
                 };
+                return paymentConfig;
             }
         }
+        paymentConfig = defaults;
         return defaults;
     } catch (err) {
         console.warn("Error loading payment details, using defaults:", err);
+        paymentConfig = defaults;
         return defaults;
     }
 }
 
 // ── Update Modal with Payment Details ──
 async function updateModalDetails() {
-    const details = await getPaymentDetails();
+    await getPaymentDetails();
     
-    document.getElementById('acctNum').textContent = details.accountNumber;
-    document.getElementById('acctName').textContent = details.accountName;
-    document.getElementById('modalBankNameDisplay').textContent = details.bankName;
+    document.getElementById('acctNum').textContent = paymentConfig.accountNumber;
+    document.getElementById('acctName').textContent = paymentConfig.accountName;
+    document.getElementById('modalBankNameDisplay').textContent = paymentConfig.bankName;
     
     // Store telegram link for use in handlePaymentConfirmation
-    window._telegramLink = details.telegramLink;
+    window._telegramLink = paymentConfig.telegramLink;
+    
+    // ── SHOW/HIDE SECTIONS BASED ON usePaymentLink ──
+    const bankSection = document.getElementById('bankDetailsSection');
+    const paymentSection = document.getElementById('paymentLinkSection');
+    
+    if (paymentConfig.usePaymentLink && paymentConfig.paymentLink2) {
+        // Show payment link section, hide bank details
+        bankSection.style.display = 'none';
+        paymentSection.style.display = 'block';
+        
+        // Update the modal subtitle
+        document.getElementById('modalBankName').innerHTML = 'Complete your payment online';
+        
+        // Store payment link
+        window._paymentLink2 = paymentConfig.paymentLink2;
+    } else {
+        // Show bank details, hide payment link section
+        bankSection.style.display = 'block';
+        paymentSection.style.display = 'none';
+        
+        document.getElementById('modalBankName').innerHTML = 'Transfer NGN 17,500 to <span id="modalBankNameDisplay">' + paymentConfig.bankName + '</span>';
+    }
+}
+
+// ── Open Payment Link ──
+function openPaymentLink() {
+    const link = window._paymentLink2 || paymentConfig.paymentLink2;
+    if (link && link.startsWith('http')) {
+        window.open(link, '_blank');
+    } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'Payment link not available',
+            text: 'Please contact support for assistance.',
+            confirmButtonColor: '#3BC4A3'
+        });
+    }
 }
 
 // ── Get Current User ──
@@ -1043,10 +1145,12 @@ function checkSession() {
 document.addEventListener('DOMContentLoaded', async function() {
     if (checkSession()) {
         // Load payment details from Firebase
+        await loadFirebaseConfig();
         await updateModalDetails();
         updateWithdrawPage();
     }
 });
 </script>
+
 </body>
 </html>

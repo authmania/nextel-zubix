@@ -224,6 +224,80 @@
             margin-bottom: 1.4rem;
         }
 
+        /* ── Toggle Switch ── */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 16px;
+        }
+        .toggle-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toggle-label small {
+            font-weight: 400;
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #d1d5db;
+            border-radius: 999px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: #fff;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--gold);
+        }
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+        }
+        .toggle-status {
+            font-size: 12px;
+            font-weight: 700;
+            min-width: 44px;
+            color: var(--text-muted);
+        }
+        .toggle-status.active {
+            color: var(--green);
+        }
+        .toggle-status.inactive {
+            color: #dc2626;
+        }
+
         /* ── Inputs ── */
         .link-row {
             display: flex;
@@ -297,6 +371,12 @@
 
         .w-100 { width: 100%; }
 
+        .divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 16px 0;
+        }
+
         /* ── Toast ── */
         .toast-bar {
             position: fixed;
@@ -331,6 +411,7 @@
             .admin-card { padding: 1.2rem 1rem; border-radius: 18px; margin-bottom: 1.2rem; }
             .link-row { flex-direction: column; }
             .save-btn { width: 100%; }
+            .toggle-row { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -356,7 +437,6 @@
     <!-- Header -->
     <header class="admin-header">
         <a href="index.html" class="admin-logo">
-            <!-- <img src="assets/logo.png" alt="Nextel Connect"> -->
             Nextel<span>.</span>
         </a>
         <div class="admin-header-right">
@@ -401,6 +481,41 @@
             <div class="link-status" id="bankStatus"></div>
         </div>
 
+        <!-- ── PAYMENT LINK SETTINGS ── -->
+        <div class="admin-card">
+            <div class="admin-card-title">
+                <i class="fa-solid fa-link me-2" style="color:var(--gold);"></i>Payment Link Settings
+            </div>
+
+            <!-- TOGGLE: Use Payment Links -->
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    Enable Payment Links
+                    <small>(Use payment links instead of bank transfer)</small>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+                    <span class="toggle-status" id="toggleStatusDisplay">OFF</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="usePaymentLinkToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <!-- 17K PAYMENT LINK -->
+            <div class="input-group-mb">
+                <div class="current-link-label">17K Payment Link</div>
+                <div class="current-link-value" id="currentPaymentLink2Display">Loading...</div>
+                <div class="link-row mt-2">
+                    <input type="url" class="link-input" id="paymentLink2Input" placeholder="https://flutterwave.com/pay/17k">
+                    <button class="save-btn" id="savePaymentLink2Btn">Save</button>
+                </div>
+                <div class="link-status" id="paymentLink2Status"></div>
+            </div>
+        </div>
+
         <!-- ── Telegram Link Editor ── -->
         <div class="admin-card">
             <div class="admin-card-title">
@@ -436,6 +551,10 @@
                 <div>
                     <div class="current-link-label">Telegram Link</div>
                     <div class="current-link-value" id="displayTelegramLink">—</div>
+                </div>
+                <div>
+                    <div class="current-link-label">17K Payment Link</div>
+                    <div class="current-link-value" id="displayPaymentLink2">—</div>
                 </div>
             </div>
         </div>
@@ -511,6 +630,18 @@
 
     checkSession();
 
+    // ── Toggle Display Update ──
+    function updateToggleDisplay(enabled) {
+        const statusEl = document.getElementById("toggleStatusDisplay");
+        if (enabled) {
+            statusEl.textContent = "ON";
+            statusEl.className = "toggle-status active";
+        } else {
+            statusEl.textContent = "OFF";
+            statusEl.className = "toggle-status inactive";
+        }
+    }
+
     // ── Load Config ──
     async function loadConfig() {
         try {
@@ -537,10 +668,75 @@
             document.getElementById("displayAccountName").textContent = accountName;
             document.getElementById("displayAccountNumber").textContent = accountNumber;
 
+            // ── PAYMENT LINK 2 (17K) ──
+            const paymentLink2 = data.paymentLink2 || "";
+            const usePaymentLink = data.usePaymentLink || false;
+
+            document.getElementById("currentPaymentLink2Display").textContent = paymentLink2 || "Not set";
+            document.getElementById("paymentLink2Input").value = paymentLink2;
+            document.getElementById("displayPaymentLink2").textContent = paymentLink2 || "Not set";
+
+            // Toggle
+            document.getElementById("usePaymentLinkToggle").checked = usePaymentLink;
+            updateToggleDisplay(usePaymentLink);
+
         } catch (err) {
             console.error("loadConfig error:", err);
         }
     }
+
+    // ── Toggle Change Handler ──
+    document.getElementById("usePaymentLinkToggle").addEventListener("change", async function() {
+        const enabled = this.checked;
+        this.disabled = true;
+
+        try {
+            await setDoc(CONFIG_DOC, { usePaymentLink: enabled }, { merge: true });
+            updateToggleDisplay(enabled);
+            showToast(enabled ? "✅ Payment links enabled!" : "❌ Payment links disabled!");
+        } catch (err) {
+            // Revert if save fails
+            this.checked = !enabled;
+            updateToggleDisplay(!enabled);
+            showToast("❌ Failed to save toggle state.");
+            console.error("Toggle save error:", err);
+        } finally {
+            this.disabled = false;
+        }
+    });
+
+    // ── Save Payment Link 2 (17k) ──
+    document.getElementById("savePaymentLink2Btn").addEventListener("click", async () => {
+        const btn = document.getElementById("savePaymentLink2Btn");
+        const status = document.getElementById("paymentLink2Status");
+        const link = document.getElementById("paymentLink2Input").value.trim();
+
+        if (!link.startsWith("http")) {
+            status.textContent = "Enter a valid URL starting with https://";
+            status.className = "link-status error";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "Saving…";
+        status.textContent = "";
+
+        try {
+            await setDoc(CONFIG_DOC, { paymentLink2: link }, { merge: true });
+            document.getElementById("currentPaymentLink2Display").textContent = link;
+            document.getElementById("displayPaymentLink2").textContent = link;
+            status.textContent = "✅ 17K payment link saved.";
+            status.className = "link-status";
+            showToast("✅ 17K payment link updated!");
+        } catch (err) {
+            status.textContent = "❌ Save failed — check Firestore rules.";
+            status.className = "link-status error";
+            console.error("Save error:", err);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Save";
+        }
+    });
 
     // ── Save Bank Details ──
     document.getElementById("saveBankBtn").addEventListener("click", async () => {
